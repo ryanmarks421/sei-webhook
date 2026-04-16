@@ -7,6 +7,21 @@ app.use(express.json());
 const WEBHOOK_SECRET = 'sei-mortgage-zapier-2026';
 
 /**
+ * Sanitize email body to remove invalid UTF-16 surrogates and malformed encoding
+ */
+const sanitizeEmailBody = (body) => {
+  if (!body) return '';
+  let clean = body.replace(/[\uD800-\uDFFF]/g, '');
+  clean = clean.replace(/=\r?\n/g, '');
+  clean = clean.replace(/=([0-9A-Fa-f]{2})/g, (match, hex) => 
+    String.fromCharCode(parseInt(hex, 16)));
+  clean = clean.replace(/<[^>]*>/g, ' ');
+  clean = clean.replace(/[^\x20-\x7E\n\r\t]/g, ' ');
+  clean = clean.replace(/\s+/g, ' ').trim();
+  return clean;
+};
+
+/**
  * Main webhook endpoint for Zapier integration
  * Receives new lead form submissions and processes through full pipeline
  */
@@ -38,7 +53,8 @@ app.post('/webhook/new-lead', async (req, res) => {
 
     // Parse the lead data from the email body
     console.log(new Date().toISOString() + ' [WEBHOOK] Parsing lead data from email body');
-    const leadData = emailParser.extractLeadData(body);
+    const cleanBody = sanitizeEmailBody(body);
+    const leadData = emailParser.extractLeadData(cleanBody);
 
     if (!leadData || !leadData.email || !leadData.full_name) {
       console.error(new Date().toISOString() + ' [WEBHOOK] Could not parse lead data from webhook');
