@@ -1,0 +1,24 @@
+{
+  "name": "sei-mortgage-webhook",
+  "version": "1.0.0",
+  "description": "Webhook server for SEI Mortgage Zapier integration",
+  "main": "webhook_server.js",
+  "scripts": {
+    "start": "node webhook_server.js",
+    "dev": "node webhook_server.js"
+  },
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {
+    "express": "^4.22.1"
+  },
+  "keywords": [
+    "sei",
+    "mortgage",
+    "webhook",
+    "zapier"
+  ],
+  "author": "Miles",
+  "license": "MIT"
+}
