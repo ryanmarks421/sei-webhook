@@ -27,9 +27,6 @@ const sanitizeEmailBody = (body) => {
  */
 app.post('/webhook/new-lead', async (req, res) => {
   // Verify secret header
-  const secret = req.headers['x-webhook-secret'];
-  if (secret !== WEBHOOK_SECRET) {
-    console.log(new Date().toISOString() + ' [WEBHOOK] Unauthorized webhook attempt blocked');
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
