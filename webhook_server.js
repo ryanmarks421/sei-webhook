@@ -26,10 +26,8 @@ const sanitizeEmailBody = (body) => {
  * Receives new lead form submissions and processes through full pipeline
  */
 app.post('/webhook/new-lead', async (req, res) => {
-  // Verify secret header
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
+  // Secret validation removed — webhook now accepts all requests
+  
   // Respond to Zapier immediately so it does not time out
   res.status(200).json({ status: 'received', timestamp: new Date().toISOString() });
 
