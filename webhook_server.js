@@ -4,22 +4,57 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
+const WEBHOOK_SECRET = 'sei-mortgage-zapier-2026';
+
 /**
- * Webhook endpoint for Zapier integration
- * Receives new lead form submissions from Zapier
+ * Main webhook endpoint for Zapier integration
+ * Receives new lead form submissions and processes through full pipeline
  */
 app.post('/webhook/new-lead', async (req, res) => {
-  console.log(new Date().toISOString() + ' [WEBHOOK] Zapier triggered new lead');
-  res.status(200).json({ status: 'received' });
-  
+  // Verify secret header
+  const secret = req.headers['x-webhook-secret'];
+  if (secret !== WEBHOOK_SECRET) {
+    console.log(new Date().toISOString() + ' [WEBHOOK] Unauthorized webhook attempt blocked');
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  // Respond to Zapier immediately so it does not time out
+  res.status(200).json({ status: 'received', timestamp: new Date().toISOString() });
+
+  console.log(new Date().toISOString() + ' [WEBHOOK] Zapier fired — processing lead');
+
   try {
     const { subject, from, body } = req.body;
-    if (subject && subject.toLowerCase().includes('new submission from')) {
-      console.log('[WEBHOOK] Processing lead from Zapier: ' + from);
-      // TODO: Call processLeadFromWebhook({ subject, from, body });
+
+    // Confirm it is a lead email
+    if (!subject || !subject.toLowerCase().includes('new submission from')) {
+      console.log(new Date().toISOString() + ' [WEBHOOK] Not a lead email — ignoring');
+      return;
     }
-  } catch (err) {
-    console.error('[WEBHOOK] Error processing lead:', err.message);
+
+    // Import lead processing modules
+    const emailParser = require('./scripts/sei_lead_integration/email_parser');
+    const { runFullLeadProcessing } = require('./scripts/sei_lead_integration/sei_lead_processor');
+
+    // Parse the lead data from the email body
+    console.log(new Date().toISOString() + ' [WEBHOOK] Parsing lead data from email body');
+    const leadData = emailParser.extractLeadData(body);
+
+    if (!leadData || !leadData.email || !leadData.full_name) {
+      console.error(new Date().toISOString() + ' [WEBHOOK] Could not parse lead data from webhook');
+      return;
+    }
+
+    console.log(new Date().toISOString() + ' [WEBHOOK] Lead parsed: ' + leadData.full_name + ' | ' + leadData.email);
+
+    // Run the full 9 step processing pipeline
+    const result = await runFullLeadProcessing(leadData);
+    
+    console.log(new Date().toISOString() + ' [WEBHOOK] Lead fully processed: ' + leadData.full_name);
+    console.log(new Date().toISOString() + ' [WEBHOOK] Result: ' + JSON.stringify(result));
+
+  } catch (error) {
+    console.error(new Date().toISOString() + ' [WEBHOOK] Processing error:', error.message);
   }
 });
 
@@ -39,7 +74,7 @@ app.get('/health', (req, res) => {
  */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log('[WEBHOOK] Server live on port ' + PORT);
-  console.log('[WEBHOOK] Health check: GET /health');
-  console.log('[WEBHOOK] Lead webhook: POST /webhook/new-lead');
+  console.log(new Date().toISOString() + ' [WEBHOOK] Server live on port ' + PORT);
+  console.log(new Date().toISOString() + ' [WEBHOOK] Webhook endpoint: POST /webhook/new-lead');
+  console.log(new Date().toISOString() + ' [WEBHOOK] Health check: GET /health');
 });
