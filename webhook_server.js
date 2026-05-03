@@ -14,6 +14,7 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8776763466:AAGl75TXJFlqM0Iw
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID || '8680190773';
 const OPENAI_KEY = process.env.OPENAI_API_KEY || '';
 const TELEGRAM_MODEL = process.env.MILES_TELEGRAM_MODEL || 'gpt-5.4-mini';
+const TELEGRAM_WEBHOOK_URL = process.env.TELEGRAM_WEBHOOK_URL || 'https://sei-webhook.onrender.com/webhook/telegram';
 const MEMORY_PATH = path.join(process.cwd(), 'MEMORY.md');
 
 let memoryContent = '';
@@ -91,6 +92,35 @@ const sendTelegram = async (messageText) => {
   }
 
   return parsed;
+};
+
+const ensureTelegramWebhook = async () => {
+  const body = JSON.stringify({
+    url: TELEGRAM_WEBHOOK_URL,
+    secret_token: TELEGRAM_WEBHOOK_SECRET,
+    drop_pending_updates: true,
+    allowed_updates: ['message', 'edited_message']
+  });
+
+  const result = await requestJson({
+    hostname: 'api.telegram.org',
+    path: '/bot' + BOT_TOKEN + '/setWebhook',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(body)
+    },
+    body,
+    timeoutMs: 15000,
+    label: 'Telegram setWebhook'
+  });
+
+  const parsed = safeJsonParse(result.body, 'Telegram setWebhook');
+  if (!parsed.ok) {
+    throw new Error('Telegram setWebhook error: ' + (parsed.description || 'unknown error'));
+  }
+
+  console.log(new Date().toISOString() + ' [TELEGRAM] Webhook registered: ' + TELEGRAM_WEBHOOK_URL);
 };
 
 const askOpenAI = async (question) => {
@@ -278,4 +308,7 @@ app.listen(PORT, () => {
   console.log(new Date().toISOString() + ' [WEBHOOK] Webhook endpoint: POST /webhook/new-lead');
   console.log(new Date().toISOString() + ' [TELEGRAM] Webhook endpoint: POST /webhook/telegram');
   console.log(new Date().toISOString() + ' [WEBHOOK] Health check: GET /health');
+  ensureTelegramWebhook().catch((err) => {
+    console.error(new Date().toISOString() + ' [TELEGRAM] Could not register webhook: ' + err.message);
+  });
 });
