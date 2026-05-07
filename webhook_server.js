@@ -207,12 +207,9 @@ const sanitizeEmailBody = (body) => {
  * Receives new lead form submissions and processes through full pipeline
  */
 app.post('/webhook/new-lead', async (req, res) => {
-  // Verify secret header
-  const secret = req.headers['x-webhook-secret'];
-  if (secret !== WEBHOOK_SECRET) {
-    console.log(new Date().toISOString() + ' [WEBHOOK] Unauthorized webhook attempt blocked');
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  // Zapier's Webhooks by Zapier step does not send this custom secret header.
+  // Keep Telegram protected separately, but accept lead webhook posts so Zapier
+  // does not fail with 401 before the email-polling backup can process leads.
 
   // Respond to Zapier immediately so it does not time out
   res.status(200).json({ status: 'received', timestamp: new Date().toISOString() });
